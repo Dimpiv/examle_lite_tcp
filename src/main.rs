@@ -6,6 +6,11 @@ use std::thread;
 const ALLOW_HOST: &str = "0.0.0.0";
 const PORT: usize = 8888;
 
+fn main() {
+    let address_port = format!("{}:{}", ALLOW_HOST, PORT);
+    run_server(&address_port);
+}
+
 fn handle_client(mut stream: &TcpStream) {
     let mut buffer = [0 as u8; 16];
     loop {
@@ -53,9 +58,4 @@ fn run_server(address_port: &str) {
             }
         }
     }
-}
-
-fn main() {
-    let address_port = format!("{}:{}", ALLOW_HOST, PORT);
-    run_server(&address_port);
 }
