@@ -11,6 +11,23 @@ fn main() {
     run_server(&address_port);
 }
 
+fn run_server(address_port: &str) {
+    let listener = TcpListener::bind(address_port).unwrap();
+    println!("Server listening on port {}", PORT);
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                println!("New connection: {}", stream.peer_addr().unwrap());
+                thread::spawn(move || handle_client(&stream));
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        }
+    }
+}
+
 fn handle_client(mut stream: &TcpStream) {
     let mut buffer = [0 as u8; 16];
     loop {
@@ -41,21 +58,4 @@ fn read_message(raw_data: &[u8; 16], size: &usize) {
 
     let text = from_utf8(raw_data).unwrap();
     println!("Text: {}", text);
-}
-
-fn run_server(address_port: &str) {
-    let listener = TcpListener::bind(address_port).unwrap();
-    println!("Server listening on port {}", PORT);
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move || handle_client(&stream));
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-            }
-        }
-    }
 }
