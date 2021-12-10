@@ -1,10 +1,40 @@
+use chrono::{DateTime, Utc};
 use std::io::Read;
-use std::net::{Shutdown, TcpListener, TcpStream};
-use std::str::from_utf8;
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::thread;
+// use std::time::Duration;
 
 const ALLOW_HOST: &str = "0.0.0.0";
 const PORT: usize = 8888;
+
+struct Message {
+    recived_time: DateTime<Utc>,
+    connection_from: SocketAddr,
+    body: Vec<u8>,
+}
+
+impl Message {
+    fn new(connection_from: SocketAddr) -> Message {
+        Message {
+            recived_time: Utc::now(), // Время открытия соединения
+            body: vec![0],
+            connection_from,
+        }
+    }
+
+    fn print_bytes(&self) {
+        println!("Raw bytes array:\n{:?}", &self.body)
+    }
+
+    fn print_info(&self) {
+        println!(
+            "start connect: {:?} \nconnect from: {} \nsize: {}",
+            self.recived_time,
+            self.connection_from,
+            self.body.len()
+        )
+    }
+}
 
 fn main() {
     let address_port = format!("{}:{}", ALLOW_HOST, PORT);
@@ -18,8 +48,11 @@ fn run_server(address_port: &str) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move || handle_client(&stream));
+                // Example timeout: no reciveding bytes within 5 seconds -> close stream
+                // let stop_stream = stream.set_read_timeout(Some(Duration::new(5, 0))).unwrap();
+
+                let mut buff_stream = Message::new(stream.peer_addr().unwrap());
+                thread::spawn(move || handle_stream(&stream, &mut buff_stream));
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -28,17 +61,15 @@ fn run_server(address_port: &str) {
     }
 }
 
-fn handle_client(mut stream: &TcpStream) {
-    let mut buffer = [0 as u8; 16];
+fn handle_stream(mut stream: &TcpStream, buffer: &mut Message) {
     loop {
-        match stream.read(&mut buffer) {
+        match stream.read_to_end(&mut buffer.body) {
             Ok(size) => {
                 if size <= 0 {
                     break;
                 }
-                read_message(&buffer, &size);
-                // flush buffer
-                buffer = [0 as u8; 16];
+                buffer.print_info();
+                buffer.print_bytes();
             }
             Err(_) => {
                 println!(
@@ -50,12 +81,4 @@ fn handle_client(mut stream: &TcpStream) {
             }
         }
     }
-}
-
-fn read_message(raw_data: &[u8; 16], size: &usize) {
-    println!("Recived bytes: {}", size);
-    println!("Raw bytes: {:?}", raw_data);
-
-    let text = from_utf8(raw_data).unwrap();
-    println!("Text: {}", text);
 }
